@@ -26,15 +26,30 @@ jobs:
     - name: Clone kernel repository
       run: git clone https://github.com/samsung-sm8550/kernel_samsung_sm8550-common
 
+    - name: Navigate to kernel directory (if needed)
+      run: |
+        cd kernel_samsung_sm8550-common
+        echo "Current directory: $(pwd)"
+
     - name: Run patch.sh from test repository
       run: |
         chmod +x patch.sh
         ./patch.sh
 
+    - name: Debug kernel directory structure
+      run: |
+        echo "Contents of kernel_samsung_sm8550-common:"
+        ls -R kernel_samsung_sm8550-common
+
     - name: Copy Image.gz to assets folder
       run: |
         mkdir -p assets
-        cp kernel_samsung_sm8550-common/out/arch/arm64/boot/Image.gz assets/
+        if [ -f "kernel_samsung_sm8550-common/out/arch/arm64/boot/Image.gz" ]; then
+          cp kernel_samsung_sm8550-common/out/arch/arm64/boot/Image.gz assets/
+        else
+          echo "Error: Image.gz not found in the expected location!"
+          exit 1
+        fi
 
     - name: Compress assets folder
       run: |
