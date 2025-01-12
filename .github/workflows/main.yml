@@ -66,8 +66,8 @@ jobs:
 
     - name: Make zip file
       run: |
-        cp $Outdir/Image.gz  ${GITHUB_WORKSPACE}/assets/
-        zip -r common-5.15.176.zip ${GITHUB_WORKSPACE}/assets
+        cp $Outdir/Image.gz ${GITHUB_WORKSPACE}/assets/
+        zip -r ${GITHUB_WORKSPACE}/common-5.15.176.zip ${GITHUB_WORKSPACE}/assets
         
     - name: Publish to GitHub
       uses: softprops/action-gh-release@v1
