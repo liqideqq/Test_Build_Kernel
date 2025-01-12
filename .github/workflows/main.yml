@@ -48,7 +48,7 @@ jobs:
     - name: Clone Repo
       run: |
         cd ${GITHUB_WORKSPACE}/workspace
-        git clone https://github.com/samsung-sm8550/kernel_samsung_sm8550-commom.git -b android13-5.15 kernel_samsung_sm8550-common
+        git clone https://github.com/DrRoot85/kernel_samsung_sm8550-commom.git -b android13-5.15 kernel_samsung_sm8550-common
     
     - name: Building Kernel
       run: |
