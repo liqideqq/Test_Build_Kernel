@@ -63,11 +63,17 @@ jobs:
         echo "date=$(TZ=Asia/Bangkok date +%Y%m%d-%H%M)" >> $GITHUB_OUTPUT
         echo "Outdir=${GITHUB_WORKSPACE}/workspace/kernel_samsung_sm8550-common/out/arch/arm64/boot" >> $GITHUB_OUTPUT
       id: var
-    
+
+    - name: Make zip file
+      run: |
+        cp ${{ steps.var.outputs.Outdir }}/Image.gz cp ${GITHUB_WORKSPACE}/assets
+        zip -r common-5.15.176.zip ${GITHUB_WORKSPACE}/assets
+        
     - name: Publish to GitHub
       uses: softprops/action-gh-release@v1
       with:
-        files: ${{ steps.var.outputs.Outdir }}/Image.gz
+        # files: ${{ steps.var.outputs.Outdir }}/Image.gz
+        files: ${GITHUB_WORKSPACE}/assets.zip
         name: Release Dr.Root Kernel 5.15.xxx
         tag_name: ${{ github.run_id }}
         body: |
