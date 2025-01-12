@@ -73,7 +73,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         # files: ${{ steps.var.outputs.Outdir }}/Image.gz
-        files: ${GITHUB_WORKSPACE}/assets.zip
+        files: ${GITHUB_WORKSPACE}/common-5.15.176.zip
         name: Release Dr.Root Kernel 5.15.xxx
         tag_name: ${{ github.run_id }}
         body: |
