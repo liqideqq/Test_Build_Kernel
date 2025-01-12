@@ -1,84 +1,77 @@
-name: Kernel Build
+name: Build and Release Kernel
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main  # Trigger on push to the main branch
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   build:
-    if: github.event.repository.owner.id == github.event.sender.id
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
+    runs-on: ubuntu-latest
 
     steps:
-    - name: Check Out
-      uses: actions/checkout@v4
+    - name: Checkout test repository
+      uses: actions/checkout@v3
 
-    - name: Cleanup
-      uses: rokibhasansagar/slimhub_actions@main
+    - name: Install dependencies
+      run: |
+        sudo apt update -y
+        sudo apt install -y default-jdk git gnupg flex bison gperf build-essential zip curl \
+          libc6-dev libncurses-dev libx11-dev libreadline-dev libgl1 libgl1-mesa-dev \
+          python3 make sudo gcc g++ bc grep tofrodos python3-markdown libxml2-utils xsltproc \
+          zlib1g-dev python-is-python3 libc6-dev libtinfo6 make repo cpio kmod openssl \
+          libelf-dev pahole libssl-dev
 
-    - name: Prepare the environment
-      run: |
-        sudo apt update
-        sudo apt -y upgrade
-        sudo apt -y install gperf gcc-multilib gcc-10-multilib g++-multilib g++-10-multilib libc6-dev lib32ncurses5-dev x11proto-core-dev libx11-dev tree lib32z-dev libgl1-mesa-dev libxml2-utils xsltproc bc ccache lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev libwxgtk3.0-gtk3-dev libxml2 lzop pngcrush schedtool squashfs-tools imagemagick libbz2-dev lzma ncftp qemu-user-static libstdc++-10-dev libncurses5 python3 bc bcc bison build-essential ccache curl flex g++-multilib gcc-multilib git git-lfs gnupg gperf imagemagick lib32readline-dev lib32z1-dev libelf-dev liblz4-tool libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev dwarves pahole  
+    - name: Clone kernel repository
+      run: git clone https://github.com/samsung-sm8550/kernel_samsung_sm8550-common
 
-    - name: Install OpenJDK
-      uses: actions/setup-java@v3
-      with:
-        distribution: 'zulu'
-        java-version: '11'
-
-    - name: Install repo
+    - name: Run patch.sh from test repository
       run: |
-        mkdir ~/bin
-        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-        chmod a+x ~/bin/repo
-        sudo ln -sf ~/bin/repo /usr/bin/repo
-
-    - name: Init Repo
-      run: |
-        export HOME=${GITHUB_WORKSPACE}
-        cd ${GITHUB_WORKSPACE}
-        mkdir ${GITHUB_WORKSPACE}/workspace
-        cd ${GITHUB_WORKSPACE}/workspace
-        git config --global user.name "DrRoot85"
-        git config --global user.email "mhbmi@icloud.com"
-   
-    - name: Clone Repo
-      run: |
-        cd ${GITHUB_WORKSPACE}/workspace
-        git clone https://github.com/DrRoot85/kernel_samsung_sm8550-commom.git -b android13-5.15 kernel_samsung_sm8550-common
-    
-    - name: Building Kernel
-      run: |
-        cp ${GITHUB_WORKSPACE}/patch.sh ${GITHUB_WORKSPACE}/workspace/kernel_samsung_sm8550-common
-        cd ${GITHUB_WORKSPACE}/workspace/kernel_samsung_sm8550-common
-        ls -l
         chmod +x patch.sh
         ./patch.sh
-        
-    - name: Set Variables
-      run: |
-        echo "date=$(TZ=Asia/Bangkok date +%Y%m%d-%H%M)" >> $GITHUB_OUTPUT
-        echo "Outdir=${GITHUB_WORKSPACE}/workspace/kernel_samsung_sm8550-common/out/arch/arm64/boot" >> $GITHUB_OUTPUT
-      id: var
 
-    - name: Make zip file
+    - name: Copy Image.gz to assets folder
       run: |
-        cp ${GITHUB_WORKSPACE}/workspace/kernel_samsung_sm8550-common/out/arch/arm64/boot/Image.gz ${GITHUB_WORKSPACE}/assets/
-        zip -r ${GITHUB_WORKSPACE}/common-5.15.176.zip ${GITHUB_WORKSPACE}/assets
-        
-    - name: Publish to GitHub
-      uses: softprops/action-gh-release@v1
-      with:
-        # files: ${{ steps.var.outputs.Outdir }}/Image.gz
-        files: ${GITHUB_WORKSPACE}/common-5.15.176.zip
-        name: Release Dr.Root Kernel 5.15.xxx
-        tag_name: ${{ github.run_id }}
-        body: |
-          Manufacturer : Qualcomm
-          Chipset : SM8550
-          Codename : Kalama
+        mkdir -p assets
+        cp kernel_samsung_sm8550-common/out/arch/arm64/boot/Image.gz assets/
+
+    - name: Compress assets folder
+      run: |
+        zip -r common-5.15.175.zip assets
+
+    - name: Get latest release tag
+      id: get_latest_tag
+      run: |
+        LATEST_TAG=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | grep -oP '"tag_name": "\K.*?(?=")')
+        if [ -z "$LATEST_TAG" ]; then
+          echo "No previous releases found. Starting with v1.0.0"
+          echo "new_tag=v1.0.0" >> $GITHUB_OUTPUT
+        else
+          echo "Latest tag: $LATEST_TAG"
+          # Increment the patch version (e.g., v1.0.0 -> v1.0.1)
+          NEW_TAG=$(echo $LATEST_TAG | awk -F. '{printf("%s.%s.%d", $1, $2, $3+1)}')
+          echo "New tag: $NEW_TAG"
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.TEST }}     
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_latest_tag.outputs.new_tag }}
+        release_name: Release ${{ steps.get_latest_tag.outputs.new_tag }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./common-5.15.175.zip
+        asset_name: common-5.15.175.zip
+        asset_content_type: application/zip
