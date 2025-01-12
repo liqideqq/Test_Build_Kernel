@@ -52,7 +52,7 @@ jobs:
     
     - name: Building Kernel
       run: |
-        cp ${GITHUB_WORKSPACE}/Test_Build_Kernel/patch.sh ${GITHUB_WORKSPACE}/workspace/kernel_samsung_sm8550-common
+        cp ${GITHUB_WORKSPACE}/patch.sh ${GITHUB_WORKSPACE}/workspace/kernel_samsung_sm8550-common
         cd ${GITHUB_WORKSPACE}/workspace/kernel_samsung_sm8550-common
         ls -l
         chmod +x patch.sh
