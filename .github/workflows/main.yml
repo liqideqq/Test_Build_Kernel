@@ -1,0 +1,78 @@
+name: Kernel Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    if: github.event.repository.owner.id == github.event.sender.id
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+    - name: Check Out
+      uses: actions/checkout@v4
+
+    - name: Cleanup
+      uses: rokibhasansagar/slimhub_actions@main
+
+    - name: Prepare the environment
+      run: |
+        sudo apt update
+        sudo apt -y upgrade
+        sudo apt -y install gperf gcc-multilib gcc-10-multilib g++-multilib g++-10-multilib libc6-dev lib32ncurses5-dev x11proto-core-dev libx11-dev tree lib32z-dev libgl1-mesa-dev libxml2-utils xsltproc bc ccache lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev libwxgtk3.0-gtk3-dev libxml2 lzop pngcrush schedtool squashfs-tools imagemagick libbz2-dev lzma ncftp qemu-user-static libstdc++-10-dev libncurses5 python3 bc bcc bison build-essential ccache curl flex g++-multilib gcc-multilib git git-lfs gnupg gperf imagemagick lib32readline-dev lib32z1-dev libelf-dev liblz4-tool libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev dwarves pahole  
+
+    - name: Install OpenJDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: '11'
+
+    - name: Install repo
+      run: |
+        mkdir ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        sudo ln -sf ~/bin/repo /usr/bin/repo
+
+    - name: Init Repo
+      run: |
+        export HOME=${GITHUB_WORKSPACE}
+        cd ${GITHUB_WORKSPACE}
+        mkdir ${GITHUB_WORKSPACE}/workspace
+        cd ${GITHUB_WORKSPACE}/workspace
+        git config --global user.name "DrRoot85"
+        git config --global user.email "mhbmi@icloud.com"
+   
+    - name: Clone Repo
+      run: |
+        rm ${GITHUB_WORKSPACE}/workspace/kernel_samsung_sm8550-common
+        cd ${GITHUB_WORKSPACE}/workspace
+        git clone https://github.com/samsung-sm8550/kernel_samsung_sm8550-commom.git -b android13-5.15 kernel_samsung_sm8550-common
+    
+    - name: Building Kernel
+      run: |
+        cd ${GITHUB_WORKSPACE}/workspace/kernel_samsung_sm8550-common
+        ls -l
+        chmod +x patch.sh
+        ./patch.sh
+        
+    - name: Set Variables
+      run: |
+        echo "date=$(TZ=Asia/Bangkok date +%Y%m%d-%H%M)" >> $GITHUB_OUTPUT
+        echo "Outdir=${GITHUB_WORKSPACE}/workspace/kernel_samsung_sm8550-common/out/arch/arm64/boot" >> $GITHUB_OUTPUT
+      id: var
+    
+    - name: Publish to GitHub
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ steps.var.outputs.Outdir }}/Image.gz
+        name: Release Dr.Root Kernel 5.15.xxx
+        tag_name: ${{ github.run_id }}
+        body: |
+          Manufacturer : Qualcomm
+          Chipset : SM8550
+          Codename : Kalama
+      env:
+        GITHUB_TOKEN: ${{ secrets.TEST }}     
