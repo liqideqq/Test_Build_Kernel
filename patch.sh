@@ -42,7 +42,7 @@ echo "Patched Susfs successfully!"
 
 cd ..
 
-patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch
+# patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch
 echo "Patched Kernel successfully!"
 
 chmod +x  build.sh
